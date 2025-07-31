@@ -1,9 +1,26 @@
+# app/models/schema.py
+
 import warnings
 from enum import Enum
 from typing import Any, List, Optional, Union
 
 import pydantic
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# --------------------------------------------------------------------------------
+# NEW: Estruturas de Roteiro Elaborado
+# --------------------------------------------------------------------------------
+class Scene(BaseModel):
+    scene_number: int = Field(..., description="O número sequencial da cena, começando em 1.")
+    voiceover_text: str = Field(..., description="O texto da narração para esta cena específica.")
+    visual_description: str = Field(..., description="Uma descrição detalhada do que deve aparecer na tela. Este será o prompt para o gerador de imagens.")
+    keywords: List[str] = Field(..., description="Palavras-chave em inglês para buscar vídeos de estoque (funcionalidade legada ou de fallback).")
+    estimated_duration: float = Field(default=0.0, description="Duração estimada da cena em segundos, baseada na narração.")
+
+class StructuredScript(BaseModel):
+    scenes: List[Scene]
+
+# --------------------------------------------------------------------------------
 
 # 忽略 Pydantic 的特定警告
 warnings.filterwarnings(
@@ -54,23 +71,11 @@ class MaterialInfo:
 
 
 class VideoParams(BaseModel):
-    """
-    {
-      "video_subject": "",
-      "video_aspect": "横屏 16:9（西瓜视频）",
-      "voice_name": "女生-晓晓",
-      "bgm_name": "random",
-      "font_name": "STHeitiMedium 黑体-中",
-      "text_color": "#FFFFFF",
-      "font_size": 60,
-      "stroke_color": "#000000",
-      "stroke_width": 1.5
-    }
-    """
-
     video_subject: str
-    video_script: str = ""  # Script used to generate the video
-    video_terms: Optional[str | list] = None  # Keywords used to generate the video
+    # MODIFIED: O roteiro pode ser fornecido como um texto completo, que será então dividido em cenas, ou deixado em branco para a IA gerar tudo.
+    video_script: str = ""
+    # MODIFIED: Os termos agora são secundários, pois cada cena terá suas próprias palavras-chave.
+    video_terms: Optional[str | list] = None
     video_aspect: Optional[VideoAspect] = VideoAspect.portrait.value
     video_concat_mode: Optional[VideoConcatMode] = VideoConcatMode.random.value
     video_transition_mode: Optional[VideoTransitionMode] = None
@@ -79,10 +84,10 @@ class VideoParams(BaseModel):
 
     video_source: Optional[str] = "pexels"
     video_materials: Optional[List[MaterialInfo]] = (
-        None  # Materials used to generate the video
+        None
     )
 
-    video_language: Optional[str] = ""  # auto detect
+    video_language: Optional[str] = ""
 
     voice_name: Optional[str] = ""
     voice_volume: Optional[float] = 1.0
@@ -92,7 +97,7 @@ class VideoParams(BaseModel):
     bgm_volume: Optional[float] = 0.2
 
     subtitle_enabled: Optional[bool] = True
-    subtitle_position: Optional[str] = "bottom"  # top, bottom, center
+    subtitle_position: Optional[str] = "bottom"
     custom_position: float = 70.0
     font_name: Optional[str] = "STHeitiMedium.ttc"
     text_fore_color: Optional[str] = "#FFFFFF"
@@ -138,28 +143,11 @@ class AudioRequest(BaseModel):
 
 
 class VideoScriptParams:
-    """
-    {
-      "video_subject": "春天的花海",
-      "video_language": "",
-      "paragraph_number": 1
-    }
-    """
-
     video_subject: Optional[str] = "春天的花海"
     video_language: Optional[str] = ""
     paragraph_number: Optional[int] = 1
 
-
 class VideoTermsParams:
-    """
-    {
-      "video_subject": "",
-      "video_script": "",
-      "amount": 5
-    }
-    """
-
     video_subject: Optional[str] = "春天的花海"
     video_script: Optional[str] = (
         "春天的花海，如诗如画般展现在眼前。万物复苏的季节里，大地披上了一袭绚丽多彩的盛装。金黄的迎春、粉嫩的樱花、洁白的梨花、艳丽的郁金香……"
@@ -188,77 +176,41 @@ class VideoScriptRequest(VideoScriptParams, BaseModel):
 class VideoTermsRequest(VideoTermsParams, BaseModel):
     pass
 
+######################################################################################################
 
-######################################################################################################
-######################################################################################################
-######################################################################################################
-######################################################################################################
 class TaskResponse(BaseResponse):
     class TaskResponseData(BaseModel):
         task_id: str
 
     data: TaskResponseData
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": 200,
-                "message": "success",
-                "data": {"task_id": "6c85c8cc-a77a-42b9-bc30-947815aa0558"},
-            },
-        }
-
-
 class TaskQueryResponse(BaseResponse):
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": 200,
-                "message": "success",
-                "data": {
-                    "state": 1,
-                    "progress": 100,
-                    "videos": [
-                        "http://127.0.0.1:8080/tasks/6c85c8cc-a77a-42b9-bc30-947815aa0558/final-1.mp4"
-                    ],
-                    "combined_videos": [
-                        "http://127.0.0.1:8080/tasks/6c85c8cc-a77a-42b9-bc30-947815aa0558/combined-1.mp4"
-                    ],
-                },
-            },
-        }
-
+    pass
 
 class TaskDeletionResponse(BaseResponse):
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": 200,
-                "message": "success",
-                "data": {
-                    "state": 1,
-                    "progress": 100,
-                    "videos": [
-                        "http://127.0.0.1:8080/tasks/6c85c8cc-a77a-42b9-bc30-947815aa0558/final-1.mp4"
-                    ],
-                    "combined_videos": [
-                        "http://127.0.0.1:8080/tasks/6c85c8cc-a77a-42b9-bc30-947815aa0558/combined-1.mp4"
-                    ],
-                },
-            },
-        }
+    pass
 
-
+# MODIFIED: A resposta do roteiro agora é uma estrutura de cenas.
 class VideoScriptResponse(BaseResponse):
+    data: Optional[StructuredScript] = None
+
     class Config:
         json_schema_extra = {
             "example": {
                 "status": 200,
                 "message": "success",
                 "data": {
-                    "video_script": "春天的花海，是大自然的一幅美丽画卷。在这个季节里，大地复苏，万物生长，花朵争相绽放，形成了一片五彩斑斓的花海..."
-                },
-            },
+                    "scenes": [
+                        {
+                            "scene_number": 1,
+                            "voiceover_text": "A exploração de Marte sempre cativou a imaginação humana.",
+                            "visual_description": "Uma visão cinematográfica e ampla do planeta Marte no espaço, com sua superfície vermelha e poeirenta em destaque.",
+                            "keywords": ["mars", "space", "red planet"],
+                            "estimated_duration": 4.5
+                        }
+                    ]
+                }
+            }
         }
 
 
@@ -272,32 +224,8 @@ class VideoTermsResponse(BaseResponse):
             },
         }
 
-
 class BgmRetrieveResponse(BaseResponse):
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": 200,
-                "message": "success",
-                "data": {
-                    "files": [
-                        {
-                            "name": "output013.mp3",
-                            "size": 1891269,
-                            "file": "/MoneyPrinterTurbo/resource/songs/output013.mp3",
-                        }
-                    ]
-                },
-            },
-        }
-
+    pass
 
 class BgmUploadResponse(BaseResponse):
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": 200,
-                "message": "success",
-                "data": {"file": "/MoneyPrinterTurbo/resource/songs/example.mp3"},
-            },
-        }
+    pass
