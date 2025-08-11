@@ -215,16 +215,5 @@ def get_system_locale():
         return "en"
 
 
-def load_locales(i18n_dir):
-    _locales = {}
-    for root, dirs, files in os.walk(i18n_dir):
-        for file in files:
-            if file.endswith(".json"):
-                lang = file.split(".")[0]
-                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
-                    _locales[lang] = json.loads(f.read())
-    return _locales
-
-
 def parse_extension(filename):
     return Path(filename).suffix.lower().lstrip('.')
